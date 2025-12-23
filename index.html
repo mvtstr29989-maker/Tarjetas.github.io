@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Tarjetas giratorias</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="" crossorigin="anonymous">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+
+	<div class="wrapper">
+  <div class="cols">
+			<div class="col" ontouchstart="this.classList.toggle('hover');">
+				<div class="container" data-items='[
+                    {"img":"Certificaciones/Premio_T21_C.png","text":"Flota Moderna +1000 Tractocamiones"},
+                    {"img":"Certificaciones/EFR.png","text":"Empresa Familiarmente Responsable"},
+                    {"img":"Certificaciones/ESR.png","text":"Empresa Socialmente Responsable"},
+                    {"img":"Certificaciones/CTPAT.png","text":"CTPAT"}]'>
+					<div class="front"><div class="inner"><p>--</p></div></div>
+					<div class="back"><div class="inner"><p>--</p></div></div>
+				</div>
+			</div>
+			<div class="col" ontouchstart="this.classList.toggle('hover');">
+				<div class="container" data-items='[
+                    {"img":"Certificaciones/ISO_45001_2018.png","text":"45001 2018"},
+                    {"img":"Certificaciones/ISO_14001_2015.png","text":"14001 2015"},
+                    {"img":"Certificaciones/ISO_37001_2016.png","text":"37001 2016"},
+                    {"img":"Certificaciones/ISO_9001_2015.png","text":"9001 2015"}]'>
+					<div class="front"><div class="inner"><p>--</p></div></div>
+					<div class="back"><div class="inner"><p>--</p></div></div>
+				</div>
+			</div>
+			<div class="col" ontouchstart="this.classList.toggle('hover');">
+				<div class="container" data-items='[
+                    {"img":"Certificaciones/Premio_T21_P.png","text":"Grupo Marva Top 5"},
+                    {"img":"Certificaciones/SeguridadVial.png","text":"Premio Nacional de Seguridad Vial"},
+                    {"img":"Certificaciones/TLimpio.png","text":"Transporte Limpio"},
+                    {"img":"Certificaciones/OEA.png","text":"Operador Económico Autorizado"}]'>
+					<div class="front"><div class="inner"><p>--</p></div></div>
+					<div class="back"><div class="inner"><p>--</p></div></div>
+				</div>
+			</div>
+		</div>
+ </div>
+</body>
+		<script>
+		// Auto-rotación: alterna la clase .hover en cada .container cada 5 segundos.
+		// Añadimos checkbox `#forceMotion` para forzar la animación aun si el sistema pide reduced motion.
+		(function(){
+			const INTERVAL = 5000; // ms
+			const FORCE_AUTO_START = true; // inicia automáticamente aun con reduced-motion
+
+			function startAll(containers){
+				if (!containers || !containers.length) return;
+				containers.forEach((c, idx) => {
+					// evitar duplicar timers
+					if (c._autoInterval) return;
+					const startDelay = idx * 300;
+					c._startTimeout = setTimeout(()=>{
+						c._autoInterval = setInterval(()=> c.classList.toggle('hover'), INTERVAL);
+					}, startDelay);
+				});
+			}
+
+			function stopAll(containers){
+				if (!containers || !containers.length) return;
+				containers.forEach(c => {
+					if (c._startTimeout) { clearTimeout(c._startTimeout); delete c._startTimeout; }
+					if (c._autoInterval) { clearInterval(c._autoInterval); delete c._autoInterval; }
+					c.classList.remove('hover');
+				});
+			}
+
+			document.addEventListener('DOMContentLoaded', ()=>{
+				const containers = Array.from(document.querySelectorAll('.container'));
+				const prefersReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+				// Para cada container prepararemos items y manejaremos su propio ciclo
+				containers.forEach((c, idx) => {
+					// parsear items desde data-items si existe
+					let items = [];
+					if (c.dataset.items) {
+						try { items = JSON.parse(c.dataset.items); } catch(e) { items = []; }
+					}
+
+					// si no hay items, construir desde front/back actuales
+					const front = c.querySelector('.front');
+					const back = c.querySelector('.back');
+					if ((!items || items.length === 0) && front) {
+						const a = (front.style && front.style.backgroundImage) ? front.style.backgroundImage.replace(/^url\((?:"|'|)(.*?)(?:"|'|)\)$/, '$1') : '';
+						const at = front.querySelector('.inner p')?.textContent || '';
+						const b = (back && back.style && back.style.backgroundImage) ? back.style.backgroundImage.replace(/^url\((?:"|'|)(.*?)(?:"|'|)\)$/, '$1') : '';
+						const bt = back?.querySelector('.inner p')?.textContent || '';
+						items = [];
+						if (a) items.push({img:a,text:at});
+						if (b) items.push({img:b,text:bt});
+					}
+
+					if (!items || items.length === 0) return; // nada que ciclar
+
+					// estado por container
+					c._items = items;
+					c._current = 0;
+					// inicializar front/back
+					const renderFace = (faceEl, item) => {
+						if (!faceEl || !item) return;
+						faceEl.style.backgroundImage = item.img ? `url(${item.img})` : '';
+						const p = faceEl.querySelector('.inner p');
+						if (p) p.textContent = item.text || '';
+					};
+
+					renderFace(front, items[0]);
+					renderFace(back, items[1 % items.length] || items[0]);
+
+					// función que avanza al siguiente item con cambio en mitad de la transición
+					const advance = () => {
+						const items = c._items;
+						const nextIndex = (c._current + 1) % items.length;
+						const nextItem = items[nextIndex];
+						// precargar
+						if (nextItem && nextItem.img) { const i = new Image(); i.src = nextItem.img; }
+
+						// iniciar giro
+						c.classList.toggle('hover');
+						// calcular mitad de la transición
+						const flipEl = c.querySelector('.front') || c;
+						const cs = getComputedStyle(flipEl);
+						let dur = 700; // fallback ms
+						try {
+							const td = cs.transitionDuration || cs.webkitTransitionDuration || '0.7s';
+							if (td.indexOf('ms') > -1) dur = parseFloat(td);
+							else dur = parseFloat(td) * 1000;
+						} catch(e){}
+						const half = dur/2;
+
+						// cambiar la cara oculta a la mitad de la animación
+						setTimeout(()=>{
+							const isFlipped = c.classList.contains('hover');
+							const hiddenFace = isFlipped ? front : back; // si contiene hover ahora, front está volteada
+							renderFace(hiddenFace, nextItem);
+							c._current = nextIndex;
+						}, half);
+					};
+
+					// iniciar intervalos si corresponde (FORCE_AUTO_START o no reduced motion)
+					if (!prefersReduced || FORCE_AUTO_START) {
+						// escalonar inicio
+						setTimeout(()=>{
+							c._autoInterval = setInterval(advance, INTERVAL);
+						}, idx * 300);
+					}
+				});
+			});
+		})();
+		</script>
+</html>
